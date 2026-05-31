@@ -21,6 +21,7 @@ model = load_model("best_sign_model.keras")
 
 scaler = joblib.load("scaler.save")
 
+last_prediction = None
 # =========================
 
 # Labels
@@ -105,6 +106,7 @@ def predict():
 
     global sequence
     global last_valid
+    global last_prediction
 
     data = request.get_json()
 
@@ -133,6 +135,8 @@ def predict():
 
     if not results.multi_hand_landmarks:
 
+        last_prediction = None
+        
         return jsonify({
             "arabic": "...",
             "english": "Waiting for gesture",
@@ -221,7 +225,16 @@ def predict():
     ar = labels[predicted_label][0]
 
     en = labels[predicted_label][1]
+    
+    if predicted_label == last_prediction:
+        return jsonify({
+            "arabic": ar,
+            "english": en,
+            "playAudio": False
+        })
 
+    last_prediction = predicted_label
+    
     return jsonify({
         "arabic": ar,
         "english": en,
