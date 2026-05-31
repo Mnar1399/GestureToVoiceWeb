@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Live Translator</title>
+
+<link rel="stylesheet"
+href="{{ url_for('static', filename='css/style.css') }}">
+
+</head>
+
+<body>
+
+<nav>
+
+<div class="logo">
+Gesture To Voice
+</div>
+
+<ul>
+
+<li>
+<a href="/">
+Home
+</a>
+</li>
+
+<li>
+<a href="/translator">
+Live Translator
+</a>
+</li>
+
+</ul>
+
+</nav>
+
+<section id="translator">
+
+<h2>
+Live Sign Language Translator
+</h2>
+
+<div class="camera-card">
+
+<video
+id="camera"
+autoplay
+playsinline
+muted> </video>
+
+<canvas
+id="canvas"
+style="display:none;"> </canvas>
+
+</div>
+
+<div class="result-card">
+
+<div id="arabic">
+...
+</div>
+
+<div id="english">
+Waiting for gesture
+</div>
+
+</div>
+
+</section>
+
+<script>
+
+const video = document.getElementById("camera");
+const canvas = document.getElementById("canvas");
+
+navigator.mediaDevices.getUserMedia({
+    video:true,
+    audio:false
+})
+.then(stream => {
+
+    video.srcObject = stream;
+
+})
+.catch(err => {
+
+    alert("Camera Error");
+
+    console.log(err);
+
+});
+
+const sounds = {
+
+    "السلام عليكم":
+    "/static/audio/Sara_alsalam_kum.mp3",
+
+    "وين دورة المياه":
+    "/static/audio/Sara_win_alhamam.mp3",
+
+    "وين الطوارئ":
+    "/static/audio/Sara_win_altawaree.mp3"
+
+};
+
+let currentAudio = null;
+
+function playAudio(text){
+
+    if(currentAudio){
+
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+
+    }
+
+    if(sounds[text]){
+
+        currentAudio = new Audio(sounds[text]);
+
+        currentAudio.play();
+
+    }
+
+}
+
+async function sendFrame(){
+
+    if(video.videoWidth === 0)
+        return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx =
+    canvas.getContext("2d");
+
+    ctx.drawImage(
+        video,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    const imageData =
+    canvas.toDataURL("image/jpeg");
+
+    try{
+
+        const response =
+        await fetch("/predict",{
+
+            method:"POST",
+
+            headers:{
+                "Content-Type":
+                "application/json"
+            },
+
+            body:JSON.stringify({
+
+                image:imageData
+
+            })
+
+        });
+
+        const data =
+        await response.json();
+
+        document.getElementById("arabic")
+        .innerText =
+        data.arabic;
+
+        document.getElementById("english")
+        .innerText =
+        data.english;
+
+        if(data.playAudio){
+
+            playAudio(data.arabic);
+
+        }
+
+    }
+
+    catch(error){
+
+        console.log(error);
+
+    }
+
+}
+
+setInterval(sendFrame,150);
+
+</script>
+
+</body>
+</html>
